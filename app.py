@@ -10,7 +10,7 @@ import io
 
 # --- 1. 核心路径配置 ---
 MODEL_PATH = "best.pt"
-TRAIN_LOG_DIR = r"E:\学习\毕设\runs\detect\runs\detect\rice_13class_model"
+TRAIN_LOG_DIR = "logs"
 
 # 初始化增强型历史记录
 if 'history' not in st.session_state:
