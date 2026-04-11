@@ -7,89 +7,90 @@ import os
 from datetime import datetime
 import pandas as pd
 
-# --- 1. 核心路径配置 (适配云端相对路径) ---
+# --- 1. 核心路径配置 ---
 MODEL_PATH = "best.pt" 
-# 性能评估图表需放在 GitHub 根目录下
 RES_PATH = "results.png"
 CM_PATH = "confusion_matrix.png"
 
-# 初始化历史记录存储
+# 初始化历史记录
 if 'history' not in st.session_state:
     st.session_state['history'] = []
 
-# --- 2. 网页 UI 样式美化 (自定义 CSS) ---
+# --- 2. 网页 UI 样式美化 ---
 st.set_page_config(page_title="水稻病害检测平台", layout="wide", page_icon="🌾")
 
 st.markdown("""
     <style>
-    /* 全局背景与字体 */
-    .main { background-color: #f9fbf9; font-family: 'Microsoft YaHei', sans-serif; }
-    
-    /* 侧边栏样式 */
+    .main { background-color: #f9fbf9; }
     [data-testid="stSidebar"] { background-color: #f0f7f0; border-right: 2px solid #2e7d32; }
-    
-    /* 隐藏 Streamlit 默认页眉页脚 */
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    header {visibility: hidden;}
-
-    /* 标题样式 */
+    #MainMenu, footer, header {visibility: hidden;}
     .main-title { color: #1b5e20; text-align: center; font-weight: 800; margin-bottom: 30px; }
-    
-    /* 诊断处方卡片美化 */
     .diagnosis-card { 
-        padding: 20px; 
-        border-radius: 15px; 
-        background-color: white; 
-        border-left: 8px solid #2e7d32; 
-        box-shadow: 3px 3px 12px rgba(0,0,0,0.08); 
-        margin-bottom: 20px;
+        padding: 20px; border-radius: 15px; background-color: white; 
+        border-left: 8px solid #2e7d32; box-shadow: 3px 3px 12px rgba(0,0,0,0.08); margin-bottom: 20px;
     }
     .card-header { color: #d32f2f; font-size: 1.4em; font-weight: bold; margin-bottom: 10px; }
-    
-    /* 按钮美化 */
-    .stButton>button { 
-        width: 100%; border-radius: 10px; height: 3.2em; 
-        background-color: #2e7d32; color: white; font-weight: bold;
-        transition: 0.3s;
-    }
-    .stButton>button:hover { background-color: #1b5e20; transform: translateY(-2px); }
+    .stButton>button { width: 100%; border-radius: 10px; height: 3.2em; background-color: #2e7d32; color: white; font-weight: bold; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 3. 专家级农艺知识百科库 (完全匹配模型标签) ---
+# --- 3. 增强版农艺知识百科库 (修复匹配问题) ---
+# Key 只需要包含模型输出中的核心关键词即可
 DISEASE_WIKI = {
-    "DISEASE- Bacterial Leaf Blight": {
-        "name": "水稻白叶枯病",
-        "desc": "叶片边缘出现黄白色长条斑，边缘呈波浪状。湿度大时有黄色菌脓，严重时全叶枯萎。",
-        "advice": "1. 选用抗病品种；2. 科学排灌，防止淹水；3. 喷施叶枯唑或农用链霉素。",
-        "url": "https://baike.baidu.com/item/水稻白叶枯病"
+    "Narrow Brown Spot": {
+        "name": "窄条斑病",
+        "desc": "叶片上出现与叶脉平行的深褐色窄长条斑。发病严重时叶片由顶端向下枯萎，影响灌浆。",
+        "advice": "1. 选用抗病品种；2. 科学施肥，避免偏施氮肥；3. 发病初期喷施三环唑或丙环唑。",
+        "url": "https://baike.baidu.com/item/%E6%B0%B4%E7%A8%BB%E7%AA%84%E6%9D%A1%E6%96%91%E7%97%85"
     },
-    "NUTRIENT DEFFICIENT- Silicon": {
-        "name": "水稻缺硅症",
-        "desc": "叶片柔软下垂，植株抗逆性变差，极易发生倒伏及感染病害。",
-        "advice": "1. 施用硅化肥（如硅酸钙）；2. 喷施叶面硅肥增强叶片硬度。",
-        "url": "https://baike.baidu.com/item/植物缺硅"
+    "Bacterial Leaf Blight": {
+        "name": "白叶枯病",
+        "desc": "叶片边缘出现黄白色长条斑，边缘呈波浪状。湿度大时有菌脓。",
+        "advice": "1. 科学排灌，防止淹水；2. 喷施叶枯唑或农用链霉素。",
+        "url": "https://baike.baidu.com/item/%E6%B0%B4%E7%A8%BB%E7%99%BD%E5%8F%B6%E6%9E%AF%E7%97%85"
     },
-    "DISEASE- Leaf Blast": {
-        "name": "水稻稻瘟病",
-        "desc": "典型病斑为梭形，中心灰白，边缘红褐。被称为‘水稻癌症’，对产量威胁极大。",
-        "advice": "1. 避免偏施氮肥；2. 及时喷施三环唑、稻瘟灵或肟菌酯·戊唑醇。",
-        "url": "https://baike.baidu.com/item/稻瘟病"
-    },
-    "DISEASE- Brown Spot": {
-        "name": "水稻胡麻叶斑病",
+    "Brown Spot": {
+        "name": "胡麻叶斑病",
         "desc": "叶片散生褐色芝麻粒状病斑，中心灰白色。多发于瘦瘠稻田。",
-        "advice": "1. 增施钾肥和有机肥；2. 发病初使用苯醚甲环唑或百菌清防治。",
-        "url": "https://baike.baidu.com/item/水稻胡麻叶斑病"
+        "advice": "1. 增施钾肥和有机肥；2. 发病初期使用苯醚甲环唑。",
+        "url": "https://baike.baidu.com/item/%E6%B0%B4%E7%A8%BB%E8%83%A1%E9%BA%BB%E5%8F%B6%E6%96%91%E7%97%85"
+    },
+    "Nitrogen": {
+        "name": "缺氮症",
+        "desc": "全株色泽变黄，生长迟缓，老叶由叶尖向基部均匀变黄干枯。",
+        "advice": "及时追施尿素或碳铵，配合叶面喷施尿素溶液。",
+        "url": "https://baike.baidu.com/item/%E6%A4%8D%E7%89%A9%E7%BC%BA%E6%B0%AE"
+    },
+    "Potassium": {
+        "name": "缺钾症",
+        "desc": "老叶叶尖及边缘焦枯，形似火烧，叶面常出现赤褐色斑点。",
+        "advice": "增施氯化钾或硫酸钾，抢晴天喷施磷酸二氢钾。",
+        "url": "https://baike.baidu.com/item/%E6%A4%8D%E7%89%A9%E7%BC%BA%E9%92%BE"
+    },
+    "Calcium": {
+        "name": "缺钙症",
+        "desc": "幼叶尖端卷曲发黄，严重时生长点枯死，根系短而多。",
+        "advice": "施用石灰或钙镁磷肥，改善土壤酸碱度。",
+        "url": "https://baike.baidu.com/item/%E6%A4%8D%E7%89%A9%E7%BC%BA%E9%92%99"
+    },
+    "Silicon": {
+        "name": "缺硅症",
+        "desc": "叶片柔软下垂，植株抗逆性变差，易倒伏并感染病害。",
+        "advice": "施用硅化肥，喷施叶面硅肥增强叶片硬度。",
+        "url": "https://baike.baidu.com/item/%E6%A4%8D%E7%89%A9%E7%BC%BA%E7%A1%85"
+    },
+    "Leaf Blast": {
+        "name": "稻瘟病",
+        "desc": "梭形病斑，中心灰白。被称为‘水稻癌症’，威胁极大。",
+        "advice": "1. 避免偏施氮肥；2. 及时喷施三环唑或稻瘟灵。",
+        "url": "https://baike.baidu.com/item/%E7%A8%BB%E7%91%9F%E7%97%85"
     },
     "HEALTHY": {
         "name": "健康植株",
         "desc": "叶色翠绿，无病斑或生理性缺素症状。",
-        "advice": "目前生长良好。请保持科学肥水管理，定期巡查。",
-        "url": "https://baike.baidu.com/item/水稻/133543"
+        "advice": "目前生长良好。请保持常规肥水管理。",
+        "url": "https://baike.baidu.com/item/%E6%B0%B4%E7%A8%BB/133543"
     }
-    # 更多类别（如缺氮、缺磷等）可按此格式继续扩充
 }
 
 # --- 4. 核心功能函数 ---
@@ -100,22 +101,32 @@ def load_model():
 model = load_model()
 
 def render_diagnosis(found_classes):
-    """渲染诊断报告"""
+    """渲染诊断报告 (支持长标签子串匹配)"""
     if not found_classes:
         st.info("💡 诊断结果：未检测到明显异常。")
         return
+    
     st.markdown("<h3 style='color: #2e7d32;'>📋 专家诊断处方</h3>", unsafe_allow_html=True)
-    for c in set(found_classes):
-        # 模糊匹配逻辑
-        info = DISEASE_WIKI.get(c)
-        if not info:
-            for k, v in DISEASE_WIKI.items():
-                if c.lower() in k.lower() or k.lower() in c.lower():
-                    info = v; break
+    
+    # 获取去重后的检测结果列表
+    detected_list = list(set(found_classes))
+    all_matched_info = []
+
+    for c in detected_list:
+        found_match = False
+        # 遍历知识库，检查知识库的 Key 是否在模型输出的复杂标签中
+        for key, info in DISEASE_WIKI.items():
+            if key.lower() in c.lower():
+                if info not in all_matched_info: # 避免重复展示
+                    all_matched_info.append(info)
+                found_match = True
         
-        if not info:
-            info = {"name": c, "desc": "暂无描述", "advice": "咨询农技人员", "url": "#"}
-            
+        # 如果彻底没匹配上，显示原始标签
+        if not found_match:
+            all_matched_info.append({"name": c, "desc": "暂无该细分标签描述", "advice": "咨询农技人员", "url": "#"})
+
+    # 渲染匹配到的所有信息卡片
+    for info in all_matched_info:
         st.markdown(f"""
             <div class="diagnosis-card">
                 <div class="card-header">识别到：{info['name']}</div>
@@ -125,18 +136,25 @@ def render_diagnosis(found_classes):
                 </p>
             </div>
         """, unsafe_allow_html=True)
-        st.link_button(f"🔗 查看 {info['name']} 详细百科手册", info['url'])
+        if info['url'] != "#":
+            st.link_button(f"🔗 查看 {info['name']} 详细百科手册", info['url'])
 
 def add_record(mode, filename, found, res_img):
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    names = [DISEASE_WIKI.get(c, {"name":c})["name"] for c in set(found)]
+    # 历史记录简要名称
+    res_names = []
+    for c in set(found):
+        for k, v in DISEASE_WIKI.items():
+            if k.lower() in c.lower(): res_names.append(v['name'])
+    
+    display_res = ", ".join(list(set(res_names))) or "健康"
     thumb = res_img.copy(); thumb.thumbnail((180, 180))
     st.session_state['history'].insert(0, {
         "时间": now, "模式": mode, "文件名": filename, 
-        "结果": ", ".join(names) or "健康", "预览": thumb, "详情": res_img, "标签": list(set(found))
+        "结果": display_res, "预览": thumb, "详情": res_img, "标签": list(set(found))
     })
 
-# --- 5. 侧边栏与导航 ---
+# --- 5. 侧边栏与主标题 ---
 with st.sidebar:
     st.markdown("# 🌾 水稻病害检测")
     st.divider()
@@ -147,15 +165,13 @@ with st.sidebar:
     if st.button("🗑️ 清空历史"):
         st.session_state['history'] = []; st.rerun()
 
-# 主页面标题
 st.markdown("<h1 class='main-title'>🌾 水稻病害检测系统</h1>", unsafe_allow_html=True)
 
 if not model:
-    st.error("⚠️ 未能加载模型，请确保 best.pt 已上传。")
+    st.error("⚠️ 未能加载模型。")
     st.stop()
 
 # --- 6. 各模块逻辑 ---
-
 if option == "智能单图检测":
     file = st.file_uploader("上传照片", type=['jpg','png','jpeg'])
     if file:
@@ -199,16 +215,12 @@ elif option == "详细检测记录":
         with st.container(border=True):
             col1, col2, col3 = st.columns([1, 4, 1])
             col1.image(rec["预览"])
-            col2.markdown(f"📅 **时间**：{rec['时间']} | **文件名**：{rec['文件名']}\n\n**诊断结果**：`{rec['结果']}`")
+            col2.markdown(f"📅 **时间**：{rec['时间']} | **文件名**：{rec['文件名']}\n\n**结果**：`{rec['结果']}`")
             if col3.button("详情", key=f"btn_{i}"):
                 st.image(rec["详情"])
                 render_diagnosis(rec["标签"])
 
 elif option == "模型性能评估":
     st.subheader("📊 模型训练关键指标曲线")
-    if os.path.exists(RES_PATH):
-        st.image(RES_PATH, caption="训练 Loss 与 mAP 指标曲线", use_container_width=True)
-    else:
-        st.error("未在根目录找到 results.png")
-    if os.path.exists(CM_PATH):
-        st.image(CM_PATH, caption="混淆矩阵", use_container_width=True)
+    if os.path.exists(RES_PATH): st.image(RES_PATH, use_container_width=True)
+    if os.path.exists(CM_PATH): st.image(CM_PATH, use_container_width=True)
