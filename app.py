@@ -131,134 +131,111 @@ DISEASE_WIKI = {
         "url": "https://baike.baidu.com/item/水稻缺锌症"
     }
 }
-# --- 4. 核心功能函数 ---
+# --- 3. 核心工具函数 ---
 @st.cache_resource
-def load_model():
-    return YOLO(MODEL_PATH) if os.path.exists(MODEL_PATH) else None
+def load_yolo():
+    if os.path.exists(MODEL_PATH): return YOLO(MODEL_PATH)
+    return None
 
-model = load_model()
+model = load_yolo()
 
-def render_diagnosis(found_classes):
-    """渲染诊断报告 (支持长标签子串匹配)"""
-    if not found_classes:
-        st.info("💡 诊断结果：未检测到明显异常。")
-        return
-    
-    st.markdown("<h3 style='color: #2e7d32;'>📋 专家诊断处方</h3>", unsafe_allow_html=True)
-    
-    # 获取去重后的检测结果列表
-    detected_list = list(set(found_classes))
-    all_matched_info = []
+if 'history' not in st.session_state: st.session_state['history'] = []
 
-    for c in detected_list:
-        found_match = False
-        # 遍历知识库，检查知识库的 Key 是否在模型输出的复杂标签中
-        for key, info in DISEASE_WIKI.items():
-            if key.lower() in c.lower():
-                if info not in all_matched_info: # 避免重复展示
-                    all_matched_info.append(info)
-                found_match = True
-        
-        # 如果彻底没匹配上，显示原始标签
-        if not found_match:
-            all_matched_info.append({"name": c, "desc": "暂无该细分标签描述", "advice": "咨询农技人员", "url": "#"})
-
-    # 渲染匹配到的所有信息卡片
-    for info in all_matched_info:
-        st.markdown(f"""
-            <div class="diagnosis-card">
-                <div class="card-header">识别到：{info['name']}</div>
-                <p><b>【病症特征】</b>：{info['desc']}</p>
-                <p style="background-color: #f1f8e9; padding: 10px; border-radius: 5px;">
-                    <b>【防治建议】</b>：{info['advice']}
-                </p>
-            </div>
-        """, unsafe_allow_html=True)
-        if info['url'] != "#":
-            st.link_button(f"🔗 查看 {info['name']} 详细百科手册", info['url'])
-
-def add_record(mode, filename, found, res_img):
+def add_record(mode, filename, found_classes, result_img):
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    # 历史记录简要名称
-    res_names = []
-    for c in set(found):
-        for k, v in DISEASE_WIKI.items():
-            if k.lower() in c.lower(): res_names.append(v['name'])
-    
-    display_res = ", ".join(list(set(res_names))) or "健康"
-    thumb = res_img.copy(); thumb.thumbnail((180, 180))
-    st.session_state['history'].insert(0, {
-        "时间": now, "模式": mode, "文件名": filename, 
-        "结果": display_res, "预览": thumb, "详情": res_img, "标签": list(set(found))
-    })
+    cn_names = [DISEASE_WIKI.get(c, {"name": c})["name"] for c in set(found_classes)]
+    res_text = ", ".join(cn_names) if cn_names else "健康"
+    st.session_state['history'].insert(0, {"时间": now, "结果": res_text, "图": result_img, "原始": found_classes})
 
-# --- 5. 侧边栏与主标题 ---
-with st.sidebar:
-    st.markdown("# 🌾 水稻病害检测")
+def show_report(found_classes):
+    if not found_classes:
+        st.info("💡 诊断结果：植株目前健康。")
+        return
     st.divider()
-    option = st.radio("导航菜单", ["智能单图检测", "专业批量分析", "实时监控模式", "详细检测记录", "模型性能评估"])
-    st.divider()
-    conf_val = st.slider("置信度 (Conf)", 0.05, 1.0, 0.45)
-    iou_val = st.slider("重叠过滤 (IoU)", 0.1, 0.9, 0.35)
-    if st.button("🗑️ 清空历史"):
-        st.session_state['history'] = []; st.rerun()
+    for c in set(found_classes):
+        info = DISEASE_WIKI.get(c, {"name": c, "desc": "暂无描述", "advice": "咨询农技员", "url": "#"})
+        with st.container(border=True):
+            st.markdown(f"### 💊 {info['name']}")
+            st.write(f"**【病症特征】**：{info['desc']}")
+            st.success(f"**【防治建议】**：{info['advice']}")
+            st.link_button("🔗 查看百科详情", info['url'])
 
-st.markdown("<h1 class='main-title'>🌾 水稻病害检测系统</h1>", unsafe_allow_html=True)
+# --- 4. 屏幕中央 UI 布局 ---
+st.title("🌾 水稻病害检测识别系统")
+st.markdown("---")
 
-if not model:
-    st.error("⚠️ 未能加载模型。")
-    st.stop()
+# A. 核心功能标签页 (取代原有的侧边栏单选框)
+tab1, tab2, tab3, tab4, tab5 = st.tabs(["📸 智能单图检测", "📂 专业批量分析", "📹 实时监控模式", "📊 历史数据中心", "📈 模型性能评估"])
 
-# --- 6. 各模块逻辑 ---
-if option == "智能单图检测":
-    file = st.file_uploader("上传照片", type=['jpg','png','jpeg'])
+# B. 隐藏式高级参数面板 (点击才会出来)
+with st.expander("🛠️ 高级算法参数设置（仅在光线较差或识别不准时调节）"):
+    col_a, col_b = st.columns(2)
+    with col_a:
+        conf_val = st.slider("识别置信度 (Conf)", 0.05, 1.0, 0.45, help="数值越高，识别越严苛，漏检率增加；数值越低，越敏感，误检率增加。")
+    with col_b:
+        iou_val = st.slider("重叠过滤 (IoU)", 0.1, 0.9, 0.35, help="用于处理重叠叶片。")
+
+# --- 5. 业务模块实现 ---
+
+# 模块 1：单图检测
+with tab1:
+    file = st.file_uploader("请选择一张水稻叶片照片...", type=['jpg','jpeg','png'], key="single_u")
     if file:
         img = Image.open(file)
-        res = model.predict(img, conf=conf_val, iou=iou_val)[0]
-        res_plotted = Image.fromarray(res.plot()[..., ::-1])
+        results = model(img, conf=conf_val, iou=iou_val)[0]
+        res_plot = Image.fromarray(results.plot()[..., ::-1])
         c1, c2 = st.columns(2)
-        with c1: st.image(img, caption="原始图片", use_container_width=True)
-        with c2: st.image(res_plotted, caption="识别结果", use_container_width=True)
-        found = [res.names[int(b.cls[0])] for b in res.boxes]
-        add_record("单图", file.name, found, res_plotted)
-        render_diagnosis(found)
+        with c1: st.image(img, caption="原始输入", use_container_width=True)
+        with c2: st.image(res_plot, caption="AI 诊断图", use_container_width=True)
+        found = [results.names[int(b.cls[0])] for b in results.boxes]
+        add_record("单图", file.name, found, res_plot)
+        show_report(found)
 
-elif option == "专业批量分析":
-    files = st.file_uploader("多选图片", accept_multiple_files=True)
-    if files and st.button("开始批量诊断"):
+# 模块 2：批量分析
+with tab2:
+    files = st.file_uploader("批量上传多张水稻照片...", accept_multiple_files=True, key="multi_u")
+    if files and st.button("🚀 开始自动化批量分析"):
         for f in files:
             img = Image.open(f)
-            res = model.predict(img, conf=conf_val)[0]
-            res_plotted = Image.fromarray(res.plot()[..., ::-1])
+            res = model(img, conf=conf_val, iou=iou_val)[0]
             found = [res.names[int(b.cls[0])] for b in res.boxes]
-            add_record("批量", f.name, found, res_plotted)
-            with st.expander(f"🔍 结果预览: {f.name}"):
-                ca, cb = st.columns([1, 2])
-                with ca: st.image(res_plotted)
-                with cb: render_diagnosis(found)
+            with st.expander(f"查看文件：{f.name}"):
+                st.image(Image.fromarray(res.plot()[..., ::-1]))
+                show_report(found)
 
-elif option == "实时监控模式":
-    st.info("💡 提示：请允许浏览器访问摄像头。")
-    cam_image = st.camera_input("拍照即刻识别")
-    if cam_image:
-        img = Image.open(cam_image)
-        res = model.predict(img, conf=conf_val)[0]
-        res_plotted = Image.fromarray(res.plot()[..., ::-1])
-        st.image(res_plotted, caption="诊断快照")
-        render_diagnosis([res.names[int(b.cls[0])] for b in res.boxes])
+# 模块 3：实时监控
+with tab3:
+    st.info("该模块将调用设备默认摄像头。")
+    run = st.toggle("🟢 启动实时视频流检测")
+    frame_slot = st.image([])
+    if run:
+        cap = cv2.VideoCapture(0)
+        while run:
+            ret, frame = cap.read()
+            if not ret: break
+            frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            res = model(frame_rgb, conf=conf_val, iou=iou_val)[0]
+            frame_slot.image(res.plot())
+        cap.release()
 
-elif option == "详细检测记录":
-    if not st.session_state['history']: st.warning("暂无记录")
-    for i, rec in enumerate(st.session_state['history']):
-        with st.container(border=True):
-            col1, col2, col3 = st.columns([1, 4, 1])
-            col1.image(rec["预览"])
-            col2.markdown(f"📅 **时间**：{rec['时间']} | **文件名**：{rec['文件名']}\n\n**结果**：`{rec['结果']}`")
-            if col3.button("详情", key=f"btn_{i}"):
-                st.image(rec["详情"])
-                render_diagnosis(rec["标签"])
+# 模块 4：历史数据
+with tab4:
+    if not st.session_state['history']:
+        st.write("暂无检测记录。")
+    else:
+        for rec in st.session_state['history']:
+            with st.container(border=True):
+                ca, cb, cc = st.columns([1, 2, 2])
+                with ca: st.image(rec["图"], width=150)
+                with cb: st.write(f"📅 {rec['时间']}\n\n检测结果：**{rec['结果']}**")
+                with cc:
+                    if st.button("展开防治建议", key=rec["时间"]):
+                        show_report(rec["原始"])
 
-elif option == "模型性能评估":
-    st.subheader("📊 模型训练关键指标曲线")
-    if os.path.exists(RES_PATH): st.image(RES_PATH, use_container_width=True)
-    if os.path.exists(CM_PATH): st.image(CM_PATH, use_container_width=True)
+# 模块 5：模型指标
+with tab5:
+    if os.path.exists(TRAIN_LOG_DIR):
+        st.image(os.path.join(TRAIN_LOG_DIR, "results.png"), caption="模型训练性能指标曲线")
+        st.image(os.path.join(TRAIN_LOG_DIR, "confusion_matrix.png"), caption="混淆矩阵分析图")
+    else:
+        st.warning("未检测到模型日志目录。")
