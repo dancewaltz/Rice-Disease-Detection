@@ -36,60 +36,85 @@ st.markdown("""
 
 # --- 3. 增强版农艺知识百科库 (修复匹配问题) ---
 # Key 只需要包含模型输出中的核心关键词即可
+# --- 2. 农艺知识百科库 (完整13类，修复404链接) ---
 DISEASE_WIKI = {
-    "Narrow Brown Spot": {
-        "name": "窄条斑病",
-        "desc": "叶片上出现与叶脉平行的深褐色窄长条斑。发病严重时叶片由顶端向下枯萎，影响灌浆。",
-        "advice": "1. 选用抗病品种；2. 科学施肥，避免偏施氮肥；3. 发病初期喷施三环唑或丙环唑。",
-        "url": "https://baike.baidu.com/item/%E6%B0%B4%E7%A8%BB%E7%AA%84%E6%9D%A1%E6%96%91%E7%97%85"
-    },
-    "Bacterial Leaf Blight": {
+    "BACTERIAL LEAF BLIGHT": {
         "name": "白叶枯病",
-        "desc": "叶片边缘出现黄白色长条斑，边缘呈波浪状。湿度大时有菌脓。",
-        "advice": "1. 科学排灌，防止淹水；2. 喷施叶枯唑或农用链霉素。",
-        "url": "https://baike.baidu.com/item/%E6%B0%B4%E7%A8%BB%E7%99%BD%E5%8F%B6%E6%9E%AF%E7%97%85"
+        "desc": "发病时叶片边缘出现黄白色条斑，病斑边缘呈波浪状，湿度大时有菌脓。",
+        "advice": "1. 选用抗病品种；2. 科学排灌，防止淹水；3. 发病初期喷施叶枯唑或农用链霉素。",
+        "url": "https://baike.baidu.com/item/水稻白叶枯病"
     },
-    "Brown Spot": {
+    "BROWN SPOT": {
         "name": "胡麻叶斑病",
-        "desc": "叶片散生褐色芝麻粒状病斑，中心灰白色。多发于瘦瘠稻田。",
-        "advice": "1. 增施钾肥和有机肥；2. 发病初期使用苯醚甲环唑。",
-        "url": "https://baike.baidu.com/item/%E6%B0%B4%E7%A8%BB%E8%83%A1%E9%BA%BB%E5%8F%B6%E6%96%91%E7%97%85"
+        "desc": "叶片出现芝麻粒大小褐色病斑，中心灰白色，严重时导致叶片干枯卷缩。",
+        "advice": "1. 增施钾肥，提高抗病力；2. 种子消毒；3. 喷施苯醚甲环唑或三环唑。",
+        "url": "https://baike.baidu.com/item/水稻胡麻叶斑病"
     },
-    "Nitrogen": {
-        "name": "缺氮症",
-        "desc": "全株色泽变黄，生长迟缓，老叶由叶尖向基部均匀变黄干枯。",
-        "advice": "及时追施尿素或碳铵，配合叶面喷施尿素溶液。",
-        "url": "https://baike.baidu.com/item/%E6%A4%8D%E7%89%A9%E7%BC%BA%E6%B0%AE"
-    },
-    "Potassium": {
-        "name": "缺钾症",
-        "desc": "老叶叶尖及边缘焦枯，形似火烧，叶面常出现赤褐色斑点。",
-        "advice": "增施氯化钾或硫酸钾，抢晴天喷施磷酸二氢钾。",
-        "url": "https://baike.baidu.com/item/%E6%A4%8D%E7%89%A9%E7%BC%BA%E9%92%BE"
-    },
-    "Calcium": {
-        "name": "缺钙症",
-        "desc": "幼叶尖端卷曲发黄，严重时生长点枯死，根系短而多。",
-        "advice": "施用石灰或钙镁磷肥，改善土壤酸碱度。",
-        "url": "https://baike.baidu.com/item/%E6%A4%8D%E7%89%A9%E7%BC%BA%E9%92%99"
-    },
-    "Silicon": {
-        "name": "缺硅症",
-        "desc": "叶片柔软下垂，植株抗逆性变差，易倒伏并感染病害。",
-        "advice": "施用硅化肥，喷施叶面硅肥增强叶片硬度。",
-        "url": "https://baike.baidu.com/item/%E6%A4%8D%E7%89%A9%E7%BC%BA%E7%A1%85"
-    },
-    "Leaf Blast": {
+    "LEAF BLAST": {
         "name": "稻瘟病",
-        "desc": "梭形病斑，中心灰白。被称为‘水稻癌症’，威胁极大。",
-        "advice": "1. 避免偏施氮肥；2. 及时喷施三环唑或稻瘟灵。",
-        "url": "https://baike.baidu.com/item/%E7%A8%BB%E7%91%9F%E7%97%85"
+        "desc": "典型症状为梭形斑，中心灰白，边缘红褐色，严重时引起整片稻田枯焦。",
+        "advice": "1. 避免偏施氮肥；2. 浅水勤灌；3. 关键时期喷施三环唑或稻瘟灵。",
+        "url": "https://baike.baidu.com/item/稻瘟病"
+    },
+    "HISPA": {
+        "name": "水稻铁甲虫",
+        "desc": "成虫和幼虫均啃食叶肉，留下白色条斑，导致叶片枯黄，受害严重时如火烧状。",
+        "advice": "1. 清理田边杂草；2. 受害严重时选用杀螟丹或高效氰戊菊酯进行喷雾。",
+        "url": "https://baike.baidu.com/item/水稻铁甲虫"
+    },
+    "DEFICIENCY- NITROGEN": {
+        "name": "缺氮症",
+        "desc": "植株矮小，分蘖减少，老叶首先由叶尖向基部均匀变黄，严重时全株淡黄。",
+        "advice": "1. 及时补充尿素等氮肥；2. 配合叶面喷施1%-2%的尿素溶液。",
+        "url": "https://baike.baidu.com/item/水稻缺氮症"
+    },
+    "DEFICIENCY- POTASSIUM": {
+        "name": "缺钾症",
+        "desc": "老叶叶尖及边缘出现红褐色焦枯，形似火烧，根系发育不良，易倒伏。",
+        "advice": "1. 追施氯化钾或硫酸钾；2. 喷施0.2%的磷酸二氢钾溶液。",
+        "url": "https://baike.baidu.com/item/水稻缺钾症"
+    },
+    "DEFICIENCY- MAGNESIUM": {
+        "name": "缺镁症",
+        "desc": "叶脉间失绿变黄，但叶脉仍保持绿色，呈明显的条纹状，多发生在老叶。",
+        "advice": "1. 施用钙镁磷肥或硫酸镁；2. 叶面喷施1%-2%的硫酸镁溶液。",
+        "url": "https://baike.baidu.com/item/水稻缺镁症"
+    },
+    "DEFICIENCY- ZINC": {
+        "name": "缺锌症",
+        "desc": "叶片中脉基部失绿发白，出现褐色斑点，俗称“红苗病”，植株严重矮缩。",
+        "advice": "1. 施用硫酸锌作为基肥；2. 发病后叶面喷施0.1%-0.2%的硫酸锌溶液。",
+        "url": "https://baike.baidu.com/item/水稻缺锌症"
+    },
+    "NUTRIENT DEFICIENT- Silicon": {
+        "name": "缺硅症",
+        "desc": "叶片柔软下垂，抗病性明显变差，易感染稻瘟病及受虫害侵袭。",
+        "advice": "1. 施用硅化肥，如硅酸钙或钢渣硅肥；2. 喷施液体硅肥增强叶片硬度。",
+        "url": "https://baike.baidu.com/item/水稻施肥技术"
+    },
+    "DEFICIENCY- NITROGEN MAGNESIUM and ZINC": {
+        "name": "复合缺素(氮镁锌)",
+        "desc": "多种元素同时匮乏，表现为植株矮小且叶片大面积黄化、失绿及褐色斑点并存。",
+        "advice": "1. 紧急施用三元复合肥；2. 喷施含有微量元素的多元叶面肥进行综合补偿。",
+        "url": "https://baike.baidu.com/item/科学施肥"
+    },
+    "Nitrogen Potassium Calcium Sulfur": {
+        "name": "复合缺素(氮钾钙硫)",
+        "desc": "表现为新老叶交替变色，叶缘焦枯且生长点受阻，植株抗逆性极差。",
+        "advice": "1. 优化肥水管理；2. 补充石膏（钙硫）及平衡氮钾肥；3. 改善土壤通透性。",
+        "url": "https://baike.baidu.com/item/水稻科学施肥"
     },
     "HEALTHY": {
         "name": "健康植株",
-        "desc": "叶色翠绿，无病斑或生理性缺素症状。",
-        "advice": "目前生长良好。请保持常规肥水管理。",
-        "url": "https://baike.baidu.com/item/%E6%B0%B4%E7%A8%BB/133543"
+        "desc": "叶片颜色翠绿，株型挺拔，无病斑及虫害痕迹，生长势头良好。",
+        "advice": "继续保持科学的肥水管理，加强日常田间巡视，做好预防工作。",
+        "url": "https://baike.baidu.com/item/水稻/133543"
+    },
+    "Best management practices": {
+        "name": "优良田间状态",
+        "desc": "农事管理得当，植株表现出极佳的抗性与生长状态，无明显的营养匮乏。",
+        "advice": "建议维持当前的灌溉与施肥计划，定期清理杂草，保持田间通透性。",
+        "url": "https://baike.baidu.com/item/水稻标准化生产技术"
     }
 }
 
