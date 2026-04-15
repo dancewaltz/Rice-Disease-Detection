@@ -11,6 +11,7 @@ import pandas as pd
 MODEL_PATH = "best.pt" 
 RES_PATH = "results.png"
 CM_PATH = "confusion_matrix.png"
+TRAIN_LOG_DIR = "."
 
 # 初始化历史记录
 if 'history' not in st.session_state:
