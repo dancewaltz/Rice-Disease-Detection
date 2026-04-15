@@ -204,21 +204,36 @@ with tab2:
                 st.image(Image.fromarray(res.plot()[..., ::-1]))
                 show_report(found)
 
-# 模块 3：实时监控
+# 模块 3：实时拍照巡检
 with tab3:
-    st.info("该模块将调用设备默认摄像头。")
-    run = st.toggle("🟢 启动实时视频流检测")
-    frame_slot = st.image([])
-    if run:
-        cap = cv2.VideoCapture(0)
-        while run:
-            ret, frame = cap.read()
-            if not ret: break
-            frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            res = model(frame_rgb, conf=conf_val, iou=iou_val)[0]
-            frame_slot.image(res.plot())
-        cap.release()
-
+    st.markdown("### 📸 实时拍照诊断")
+    st.info("💡 提示：点击下方按钮开启权限后，您可以直接拍摄水稻叶片进行即时识别。")
+    
+    # 调用浏览器原生摄像头组件（适配手机与电脑）
+    img_file = st.camera_input("请正对病害部位拍摄...")
+    
+    if img_file:
+        # 将拍摄的数据流转化为 PIL 图像
+        img = Image.open(img_file)
+        
+        # 执行 YOLOv11 推理
+        # 使用您在“高级设置”中定义的 conf_val 和 iou_val
+        results = model(img, conf=conf_val, iou=iou_val)[0]
+        
+        # 渲染检测框并处理颜色空间 (OpenCV 的 BGR 转为 RGB)
+        res_plot = Image.fromarray(results.plot()[..., ::-1])
+        
+        # 居中展示识别结果
+        st.image(res_plot, caption="实时检测画面", use_container_width=True)
+        
+        # 自动提取标签并生成专家诊断报告
+        found = [results.names[int(b.cls[0])] for b in results.boxes]
+        
+        # 将此次拍照记录保存至“历史数据中心”
+        add_record("实时拍照", f"Capture_{datetime.now().strftime('%H%M%S')}.jpg", found, res_plot)
+        
+        # 联动展示 13 类百科处方
+        show_report(found)
 # 模块 4：历史数据
 with tab4:
     if not st.session_state['history']:
