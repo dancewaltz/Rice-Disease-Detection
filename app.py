@@ -31,7 +31,7 @@ st.markdown("""
     .stButton>button { width: 100%; border-radius: 10px; height: 3.2em; background-color: #2e7d32; color: white; font-weight: bold; }
     #MainMenu, footer, header {visibility: hidden;}
     
-    /* 核心布局优化：约束图片最大宽度，防止 PC 端显示过大 */
+    /* 核心修改：确保图片随窗口自适应缩放 */
     .stImage > img {
         max-width: 100%;
         height: auto;
@@ -59,7 +59,7 @@ CLASS_NAMES_CN = {
 
 # --- 4. 农艺知识百科库 (完整 13 类补全) ---
 DISEASE_WIKI = {
-    "白叶枯病": {"desc": "叶片边缘出现黄白色条斑，边缘呈波浪状。湿度大时有菌脓。", "advice": "选用抗病品种；控制氮肥；喷施叶枯唑或农用链霉素。", "url": "https://baike.baidu.com/item/水稻白叶枯病"},
+    "白叶枯病": {"desc": "叶片边缘出现黄白色条斑，边缘呈波浪状。湿度大时有菌脓。", "advice": "选用抗病品种；控制氮肥；发病初期喷施叶枯唑或农用链霉素。", "url": "https://baike.baidu.com/item/水稻白叶枯病"},
     "胡麻叶斑病": {"desc": "叶片出现芝麻粒大小褐色病斑，中心灰白色。常由高温高湿或土壤缺钾引起。", "advice": "增施钾肥，提高抗性；种子消毒；喷施苯醚甲环唑或三环唑。", "url": "https://baike.baidu.com/item/水稻胡麻叶斑病"},
     "缺镁症": {"desc": "老叶叶脉间失绿变黄，但叶脉保持绿色，叶片呈现条纹状。", "advice": "施用钙镁磷肥或硫酸镁；叶面喷施1%硫酸镁溶液。", "url": "https://baike.baidu.com/item/水稻缺镁症"},
     "缺氮症": {"desc": "植株矮小，分蘖减少。老叶首先均匀发黄，叶尖枯萎。", "advice": "及时补施尿素或碳铵；配合叶面喷施1%尿素水溶液。", "url": "https://baike.baidu.com/item/水稻缺氮症"},
@@ -83,12 +83,10 @@ def generate_random_id():
 def export_to_excel(history):
     """生成带图片和建议的专业 Excel 报表"""
     output = io.BytesIO()
-    # 使用 xlsxwriter 引擎以支持图片插入
     writer = pd.ExcelWriter(output, engine='xlsxwriter')
     
     data = []
     for rec in history:
-        # 获取首个病害的建议作为概览
         main_cause = rec["结果"].split(", ")[0]
         advice = DISEASE_WIKI.get(main_cause, {}).get("advice", "请咨询农技人员")
         data.append({
@@ -103,17 +101,14 @@ def export_to_excel(history):
     
     workbook = writer.book
     worksheet = writer.sheets['检测记录汇总']
-    
-    # 设置列宽
     worksheet.set_column('A:D', 20)
-    worksheet.set_column('E:E', 35) # 图片列
+    worksheet.set_column('E:E', 35) 
     
     for i, rec in enumerate(history):
         img_data = io.BytesIO()
         rec["图"].save(img_data, format='PNG')
-        # 插入图片到 E 列，缩放到合适大小
         worksheet.insert_image(i + 1, 4, f"img_{i}.png", {'image_data': img_data, 'x_scale': 0.12, 'y_scale': 0.12})
-        worksheet.set_row(i + 1, 75) # 调整行高以适应图片显示
+        worksheet.set_row(i + 1, 75) 
         
     writer.close()
     return output.getvalue()
@@ -131,14 +126,10 @@ def add_record(mode, filename, found_classes, result_img):
     res_text = ", ".join(cn_names) if cn_names else "健康"
     st.session_state['history'].insert(0, {
         "随机编号": generate_random_id(),
-        "时间": now, 
-        "结果": res_text, 
-        "图": result_img, 
-        "原始": found_classes
+        "时间": now, "结果": res_text, "图": result_img, "原始": found_classes
     })
 
 def show_report(found_classes):
-    """前端处方卡片渲染"""
     if not found_classes:
         st.info("💡 诊断结果：目前检测结果显示植株生长状态良好。")
         return
@@ -157,18 +148,14 @@ def show_report(found_classes):
 st.title("🌾 水稻病害检测识别系统")
 st.markdown("---")
 
-# 中心化功能标签页
 tab1, tab2, tab3, tab4, tab5 = st.tabs(["📸 智能单图检测", "📂 专业批量分析", "🤳 手机拍照识别", "📜 历史数据中心", "📈 模型性能评估"])
 
-# 隐藏式算法调优
-with st.expander("🛠️ 高级算法参数设置（仅在光线较差或识别不准时调节）"):
+with st.expander("🛠️ 高级算法参数设置"):
     col_v1, col_v2 = st.columns(2)
-    with col_v1:
-        conf_val = st.slider("识别置信度 (Conf)", 0.05, 1.0, 0.45)
-    with col_v2:
-        iou_val = st.slider("重叠过滤 (IoU)", 0.1, 0.9, 0.35)
+    with col_v1: conf_val = st.slider("识别置信度 (Conf)", 0.05, 1.0, 0.45)
+    with col_v2: iou_val = st.slider("重叠过滤 (IoU)", 0.1, 0.9, 0.35)
 
-# 业务模块实现
+# 模块 1：单图检测
 with tab1:
     file = st.file_uploader("请上传一张待检测照片...", type=['jpg','jpeg','png'], key="single_u")
     if file:
@@ -176,29 +163,34 @@ with tab1:
         results = model(img, conf=conf_val, iou=iou_val)[0]
         res_plot = Image.fromarray(results.plot()[..., ::-1])
         
-        # --- 优化显示：PC端使用 [1, 2, 2, 1] 比例，避免图片撑满屏幕 ---
-        _, mid1, mid2, _ = st.columns([0.8, 2, 2, 0.8])
-        with mid1:
-            st.image(img, caption="原始输入", use_container_width=True)
-        with mid2:
-            st.image(res_plot, caption="AI 诊断结果", use_container_width=True)
+        # 侧边留白布局 + 自适应缩放
+        _, mid1, mid2, _ = st.columns([0.5, 2, 2, 0.5])
+        with mid1: st.image(img, caption="原始输入", use_container_width=True)
+        with mid2: st.image(res_plot, caption="AI 诊断结果", use_container_width=True)
         
         found = [results.names[int(b.cls[0])] for b in results.boxes]
         add_record("单图", file.name, found, res_plot)
         show_report(found)
 
+# 模块 2：批量分析 (已更新：显示原图对比)
 with tab2:
-    files = st.file_uploader("批量上传多张水稻照片...", accept_multiple_files=True, key="multi_u")
+    files = st.file_uploader("批量上传多张照片...", accept_multiple_files=True, key="multi_u")
     if files and st.button("🚀 开始执行自动化批量推理"):
         for f in files:
             img = Image.open(f)
             res = model(img, conf=conf_val, iou=iou_val)[0]
             res_plot = Image.fromarray(res.plot()[..., ::-1])
-            found = [res.names[int(res_plot_box.cls[0])] for res_plot_box in res.boxes]
+            found = [res.names[int(b.cls[0])] for b in res.boxes]
             with st.expander(f"查看文件诊断详情：{f.name}"):
-                st.image(res_plot, use_container_width=True)
+                # 批量检测也采用双列对比布局
+                b_col1, b_col2 = st.columns(2)
+                with b_col1:
+                    st.image(img, caption="原始图", use_container_width=True)
+                with b_col2:
+                    st.image(res_plot, caption="结果图", use_container_width=True)
                 show_report(found)
 
+# 模块 3：拍照识别
 with tab3:
     st.info("💡 提示：本模块支持移动端直接调用摄像头进行田间巡检。")
     img_file = st.camera_input("请正对受害部位进行拍摄...")
@@ -211,46 +203,28 @@ with tab3:
         add_record("拍照", "Capture.jpg", found, res_plot)
         show_report(found)
 
+# 模块 4：历史中心
 with tab4:
     if not st.session_state['history']:
-        st.info("检测队列为空，请先在上方模块进行病害识别。")
+        st.info("检测队列为空。")
     else:
-        # 导出 Excel 按钮
         xlsx_data = export_to_excel(st.session_state['history'])
-        st.download_button(
-            label="📊 导出完整检测报告 (Excel 表格)", 
-            data=xlsx_data, 
-            file_name=f"Rice_Report_{datetime.now().strftime('%m%d_%H%M')}.xlsx", 
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        )
-        
+        st.download_button("📊 导出完整检测报告 (Excel 表格)", xlsx_data, "Rice_Report.xlsx", "application/vnd.ms-excel")
         st.markdown("---")
         for i, rec in enumerate(st.session_state['history']):
             with st.container(border=True):
-                ca, cb, cc = st.columns([1, 2, 1])
-                with ca: 
-                    st.image(rec["图"], use_container_width=True)
-                with cb: 
-                    st.write(f"🆔 随机编号: **{rec['随机编号']}**")
-                    st.write(f"📅 检测时间: {rec['时间']}")
-                    st.write(f"🔬 诊断结果: **{rec['结果']}**")
-                with cc:
-                    if st.button("调取防治建议", key=f"hist_{i}"):
-                        show_report(rec["原始"])
+                c1, c2, c3 = st.columns([1, 2, 1])
+                with c1: st.image(rec["图"], use_container_width=True)
+                with c2: 
+                    st.write(f"🆔 **ID**: {rec['随机编号']}\n\n📅 **时间**: {rec['时间']}\n\n🔬 **结果**: {rec['结果']}")
+                with c3:
+                    if st.button("调取建议", key=f"hist_{i}"): show_report(rec["原始"])
 
+# 模块 5：性能指标
 with tab5:
-    st.header("📊 模型训练性能与质量评估")
     if os.path.exists(TRAIN_LOG_DIR):
-        c_m1, c_m2 = st.columns(2)
-        with c_m1:
-            if os.path.exists("results.png"):
-                st.image("results.png", caption="模型精度与损失训练曲线", use_container_width=True)
-            else:
-                st.warning("根目录下未找到 results.png 训练指标文件。")
-        with c_m2:
-            if os.path.exists("confusion_matrix.png"):
-                st.image("confusion_matrix.png", caption="混淆矩阵归一化分析图", use_container_width=True)
-            else:
-                st.warning("根目录下未找到 confusion_matrix.png 矩阵文件。")
-    else:
-        st.error("系统未检测到训练日志目录。")
+        m1, m2 = st.columns(2)
+        with m1:
+            if os.path.exists("results.png"): st.image("results.png", caption="训练性能曲线", use_container_width=True)
+        with m2:
+            if os.path.exists("confusion_matrix.png"): st.image("confusion_matrix.png", caption="混淆矩阵", use_container_width=True)
