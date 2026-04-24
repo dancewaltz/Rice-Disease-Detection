@@ -162,6 +162,7 @@ with tab2:
             res = model(img, conf=conf_val, iou=iou_val)[0]
             res_plot = Image.fromarray(res.plot()[..., ::-1])
             found = [res.names[int(b.cls[0])] for b in res.boxes]
+            add_record("批量", f.name, found, res_plot)
             with st.expander(f"诊断详情：{f.name}"):
                 b_c1, b_c2 = st.columns(2)
                 with b_c1: st.image(img, caption="原图", use_container_width=True)
